@@ -1,0 +1,5 @@
+{
+  "name": "PlantCare AI",
+  "description": "Nhận diện bệnh cây trồng qua hình ảnh bằng AI",
+  "requestFramePermissions": ["camera"]
+}
