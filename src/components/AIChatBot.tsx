@@ -117,7 +117,8 @@ export default function AIChatBot() {
     setLoading(true);
 
     try {
-      const groq = new Groq({ apiKey: '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', dangerouslyAllowBrowser: true });
+      const apiKey = import.meta.env.VITE_GROQ_API_KEY || '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';
+      const groq = new Groq({ apiKey: apiKey, dangerouslyAllowBrowser: true });
       
       const groqMessages: any[] = [
         {
