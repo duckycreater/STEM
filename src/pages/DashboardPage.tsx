@@ -1,7 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Thermometer, Droplets, Wind, Sun, Activity, Map, Cpu, Zap, CloudRain, RefreshCw } from 'lucide-react';
+import { Thermometer, Droplets, Wind, Sun, Activity, Map as MapIcon, Cpu, Zap, CloudRain, RefreshCw } from 'lucide-react';
 import { motion } from 'motion/react';
 import { GoogleGenAI } from '@google/genai';
+import { MapContainer, TileLayer, Polygon, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Fix Leaflet's default icon path issues with Webpack/Vite
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
 
 const SENSOR_DATA = {
   temperature: 28.5,
@@ -13,6 +24,14 @@ const SENSOR_DATA = {
   potassium: 40,
 };
 
+const FARM_CENTER: [number, number] = [11.9404, 108.4583];
+const FARM_POLYGON: [number, number][] = [
+  [11.9410, 108.4578],
+  [11.9410, 108.4588],
+  [11.9398, 108.4588],
+  [11.9398, 108.4578],
+];
+
 export default function DashboardPage() {
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -21,14 +40,14 @@ export default function DashboardPage() {
     setLoading(true);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const prompt = `Tôi có dữ liệu cảm biến IoT từ trang trại như sau:
-      - Nhiệt độ: ${SENSOR_DATA.temperature}°C
-      - Độ ẩm không khí: ${SENSOR_DATA.humidity}%
-      - Độ ẩm đất: ${SENSOR_DATA.soilMoisture}%
-      - Độ pH đất: ${SENSOR_DATA.ph}
+      const prompt = `I have IoT sensor data from a farm:
+      - Temperature: ${SENSOR_DATA.temperature}°C
+      - Air Humidity: ${SENSOR_DATA.humidity}%
+      - Soil Moisture: ${SENSOR_DATA.soilMoisture}%
+      - Soil pH: ${SENSOR_DATA.ph}
       - N-P-K: ${SENSOR_DATA.nitrogen}-${SENSOR_DATA.phosphorus}-${SENSOR_DATA.potassium} mg/kg
       
-      Dựa trên dữ liệu này, hãy đóng vai một kỹ sư nông nghiệp AI siêu việt, đưa ra 3 lời khuyên ngắn gọn, hiện đại và thực tế nhất để tối ưu hóa năng suất cây trồng ngay lúc này. Trả lời bằng tiếng Việt, dùng bullet points.`;
+      Based on this data, act as an AI agricultural engineer and provide 3 concise, modern, and practical tips to optimize crop yield right now. Reply in English using bullet points.`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -38,10 +57,10 @@ export default function DashboardPage() {
         }
       });
 
-      setAiInsight(response.text || 'Không thể tạo phân tích lúc này.');
+      setAiInsight(response.text || 'Cannot generate analysis at this time.');
     } catch (error) {
       console.error(error);
-      setAiInsight('Lỗi kết nối đến hệ thống AI. Vui lòng thử lại sau.');
+      setAiInsight('Error connecting to AI system. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -57,18 +76,18 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between mb-2">
           <h1 className="text-xl font-bold flex items-center gap-2">
             <Cpu size={24} />
-            Trang trại IoT
+            IoT Farm
           </h1>
           <div className="flex items-center gap-1 text-sm bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
-            <Map size={14} />
-            <span>Đà Lạt, VN</span>
+            <MapIcon size={14} />
+            <span>Dalat, VN</span>
           </div>
         </div>
         <div className="flex items-center justify-between mt-4">
           <div>
             <p className="text-3xl font-light">{SENSOR_DATA.temperature}°C</p>
             <p className="text-emerald-100 text-sm flex items-center gap-1">
-              <CloudRain size={14} /> Có mưa rào nhẹ
+              <CloudRain size={14} /> Light rain
             </p>
           </div>
           <Sun size={48} className="text-yellow-300 opacity-90" />
@@ -80,30 +99,30 @@ export default function DashboardPage() {
         <div>
           <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
             <Activity size={16} />
-            Chỉ số thời gian thực
+            Real-time Metrics
           </h2>
           <div className="grid grid-cols-2 gap-3">
             <SensorCard 
               icon={<Droplets className="text-blue-500" />} 
-              label="Độ ẩm đất" 
+              label="Soil Moisture" 
               value={`${SENSOR_DATA.soilMoisture}%`} 
-              status="Bình thường"
+              status="Normal"
               progress={SENSOR_DATA.soilMoisture}
               color="bg-blue-500"
             />
             <SensorCard 
               icon={<Wind className="text-teal-500" />} 
-              label="Độ ẩm K.Khí" 
+              label="Air Humidity" 
               value={`${SENSOR_DATA.humidity}%`} 
-              status="Hơi cao"
+              status="Slightly High"
               progress={SENSOR_DATA.humidity}
               color="bg-teal-500"
             />
             <SensorCard 
               icon={<Activity className="text-purple-500" />} 
-              label="Độ pH" 
+              label="pH Level" 
               value={SENSOR_DATA.ph} 
-              status="Tối ưu"
+              status="Optimal"
               progress={(SENSOR_DATA.ph / 14) * 100}
               color="bg-purple-500"
             />
@@ -111,7 +130,7 @@ export default function DashboardPage() {
               icon={<Zap className="text-amber-500" />} 
               label="N-P-K" 
               value={`${SENSOR_DATA.nitrogen}-${SENSOR_DATA.phosphorus}-${SENSOR_DATA.potassium}`} 
-              status="Cần bón thêm N"
+              status="Needs N"
               progress={60}
               color="bg-amber-500"
             />
@@ -128,7 +147,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-gray-900 flex items-center gap-2">
               <Cpu size={18} className="text-emerald-600" />
-              AI Phân tích & Khuyến nghị
+              AI Analysis & Recommendations
             </h3>
             <button 
               onClick={generateInsight}
@@ -154,14 +173,28 @@ export default function DashboardPage() {
           </div>
         </motion.div>
 
-        {/* Map Placeholder */}
-        <div className="bg-white rounded-2xl p-1 shadow-sm border border-gray-100">
-          <div className="h-40 bg-gray-200 rounded-xl relative overflow-hidden flex items-center justify-center">
-            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'url("https://picsum.photos/seed/farm/800/400")', backgroundSize: 'cover' }}></div>
-            <div className="relative z-10 flex flex-col items-center text-gray-600">
-              <Map size={32} className="mb-2" />
-              <span className="font-medium text-sm">Bản đồ vệ tinh (Đang cập nhật)</span>
-            </div>
+        {/* Satellite Map */}
+        <div className="bg-white rounded-2xl p-1 shadow-sm border border-gray-100 overflow-hidden">
+          <div className="flex items-center gap-2 p-3 pb-2">
+            <MapIcon size={18} className="text-emerald-600" />
+            <h3 className="font-bold text-gray-900">Farm Satellite Map</h3>
+          </div>
+          <div className="h-64 bg-gray-200 rounded-xl relative overflow-hidden z-0">
+            <MapContainer center={FARM_CENTER} zoom={16} scrollWheelZoom={false} className="w-full h-full">
+              <TileLayer
+                attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              />
+              <Polygon positions={FARM_POLYGON} pathOptions={{ color: '#10b981', fillColor: '#10b981', fillOpacity: 0.2 }} />
+              <Marker position={FARM_CENTER}>
+                <Popup>
+                  <div className="text-center">
+                    <strong>IoT Farm</strong><br/>
+                    Dalat, Vietnam
+                  </div>
+                </Popup>
+              </Marker>
+            </MapContainer>
           </div>
         </div>
       </div>

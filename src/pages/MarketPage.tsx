@@ -5,34 +5,34 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { GoogleGenAI } from '@google/genai';
 
 const MARKET_DATA = {
-  'Cà phê': [
-    { month: 'T10', price: 65000 },
-    { month: 'T11', price: 68000 },
-    { month: 'T12', price: 72000 },
-    { month: 'T1', price: 75000 },
-    { month: 'T2', price: 82000 },
-    { month: 'T3', price: 85000 },
+  'Coffee': [
+    { month: 'Oct', price: 65000 },
+    { month: 'Nov', price: 68000 },
+    { month: 'Dec', price: 72000 },
+    { month: 'Jan', price: 75000 },
+    { month: 'Feb', price: 82000 },
+    { month: 'Mar', price: 85000 },
   ],
-  'Lúa gạo': [
-    { month: 'T10', price: 8500 },
-    { month: 'T11', price: 8700 },
-    { month: 'T12', price: 8900 },
-    { month: 'T1', price: 9200 },
-    { month: 'T2', price: 9100 },
-    { month: 'T3', price: 9500 },
+  'Rice': [
+    { month: 'Oct', price: 8500 },
+    { month: 'Nov', price: 8700 },
+    { month: 'Dec', price: 8900 },
+    { month: 'Jan', price: 9200 },
+    { month: 'Feb', price: 9100 },
+    { month: 'Mar', price: 9500 },
   ],
-  'Hồ tiêu': [
-    { month: 'T10', price: 70000 },
-    { month: 'T11', price: 72000 },
-    { month: 'T12', price: 75000 },
-    { month: 'T1', price: 80000 },
-    { month: 'T2', price: 85000 },
-    { month: 'T3', price: 92000 },
+  'Pepper': [
+    { month: 'Oct', price: 70000 },
+    { month: 'Nov', price: 72000 },
+    { month: 'Dec', price: 75000 },
+    { month: 'Jan', price: 80000 },
+    { month: 'Feb', price: 85000 },
+    { month: 'Mar', price: 92000 },
   ]
 };
 
 export default function MarketPage() {
-  const [selectedProduct, setSelectedProduct] = useState('Cà phê');
+  const [selectedProduct, setSelectedProduct] = useState('Coffee');
   const [aiForecast, setAiForecast] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -44,8 +44,8 @@ export default function MarketPage() {
         .map(d => `${d.month}: ${d.price.toLocaleString()} VNĐ`)
         .join(', ');
         
-      const prompt = `Dưới đây là dữ liệu giá ${selectedProduct} trong 6 tháng qua: ${dataStr}. 
-      Đóng vai một chuyên gia phân tích thị trường nông sản AI, hãy đưa ra dự báo ngắn gọn (khoảng 3-4 câu) về xu hướng giá trong tháng tới và lời khuyên cho nông dân (có nên bán ngay hay trữ lại). Trả lời bằng tiếng Việt, dùng bullet points.`;
+      const prompt = `Here is the price data for ${selectedProduct} over the last 6 months: ${dataStr}. 
+      Act as an AI agricultural market analyst and provide a concise forecast (about 3-4 sentences) on the price trend for the next month and advice for farmers (whether to sell now or hold). Reply in English using bullet points.`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -55,10 +55,10 @@ export default function MarketPage() {
         }
       });
 
-      setAiForecast(response.text || 'Không thể tạo dự báo lúc này.');
+      setAiForecast(response.text || 'Cannot generate forecast at this time.');
     } catch (error) {
       console.error(error);
-      setAiForecast('Lỗi kết nối đến hệ thống AI. Vui lòng thử lại sau.');
+      setAiForecast('Error connecting to AI system. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -79,7 +79,7 @@ export default function MarketPage() {
       <header className="bg-white border-b border-gray-200 p-4 pt-safe-top sticky top-0 z-10">
         <h1 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
           <DollarSign className="text-emerald-600" />
-          Thị trường Nông sản
+          Agricultural Market
         </h1>
         
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
@@ -109,9 +109,9 @@ export default function MarketPage() {
         >
           <div className="flex justify-between items-start mb-6">
             <div>
-              <p className="text-sm text-gray-500 font-medium mb-1">Giá thu mua hiện tại</p>
+              <p className="text-sm text-gray-500 font-medium mb-1">Current Purchase Price</p>
               <h2 className="text-3xl font-bold text-gray-900">
-                {currentPrice.toLocaleString()} <span className="text-lg text-gray-500 font-normal">VNĐ/kg</span>
+                {currentPrice.toLocaleString()} <span className="text-lg text-gray-500 font-normal">VND/kg</span>
               </h2>
             </div>
             <div className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-bold ${
@@ -141,7 +141,7 @@ export default function MarketPage() {
                 />
                 <Tooltip 
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  formatter={(value: number) => [`${value.toLocaleString()} VNĐ`, 'Giá']}
+                  formatter={(value: number) => [`${value.toLocaleString()} VND`, 'Price']}
                 />
                 <Area 
                   type="monotone" 
@@ -171,7 +171,7 @@ export default function MarketPage() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-indigo-900 flex items-center gap-2">
                 <Sparkles size={20} className="text-indigo-600" />
-                AI Dự báo xu hướng
+                AI Trend Forecast
               </h3>
               <button 
                 onClick={generateForecast}

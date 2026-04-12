@@ -17,7 +17,7 @@ export default function ResultCard({ result, plantType }: ResultCardProps) {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200"
       >
-        <h3 className="text-lg font-bold text-gray-800 mb-4">Kết quả phân tích</h3>
+        <h3 className="text-lg font-bold text-gray-800 mb-4">Analysis Result</h3>
         <div className="prose prose-sm prose-green max-w-none">
           <p className="whitespace-pre-wrap text-gray-700">{result.raw}</p>
         </div>
@@ -26,6 +26,9 @@ export default function ResultCard({ result, plantType }: ResultCardProps) {
   }
 
   const severityColor = {
+    'mild': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    'moderate': 'bg-orange-100 text-orange-800 border-orange-200',
+    'severe': 'bg-red-100 text-red-800 border-red-200',
     'nhẹ': 'bg-yellow-100 text-yellow-800 border-yellow-200',
     'trung bình': 'bg-orange-100 text-orange-800 border-orange-200',
     'nặng': 'bg-red-100 text-red-800 border-red-200',
@@ -43,14 +46,14 @@ export default function ResultCard({ result, plantType }: ResultCardProps) {
         <div className="flex justify-between items-start mb-4">
           <div>
             <span className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1 block">
-              Tên bệnh
+              Disease Name
             </span>
             <h2 className="text-xl font-bold text-gray-900 leading-tight">
-              {result.diseaseName || 'Không xác định'}
+              {result.diseaseName || 'Unknown'}
             </h2>
             {plantType && (
               <span className="inline-block mt-1 text-sm text-green-600 font-medium">
-                Trên cây {plantType}
+                On {plantType}
               </span>
             )}
           </div>
@@ -68,8 +71,8 @@ export default function ResultCard({ result, plantType }: ResultCardProps) {
               <AlertTriangle size={20} />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-gray-900">Nguyên nhân</h4>
-              <p className="text-sm text-gray-600 mt-1 leading-relaxed">{result.cause || 'Đang cập nhật'}</p>
+              <h4 className="text-sm font-bold text-gray-900">Cause</h4>
+              <p className="text-sm text-gray-600 mt-1 leading-relaxed">{result.cause || 'Updating'}</p>
             </div>
           </div>
 
@@ -78,8 +81,8 @@ export default function ResultCard({ result, plantType }: ResultCardProps) {
               <Pill size={20} />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-gray-900">Cách chữa trị</h4>
-              <p className="text-sm text-gray-600 mt-1 leading-relaxed">{result.treatment || 'Đang cập nhật'}</p>
+              <h4 className="text-sm font-bold text-gray-900">Treatment</h4>
+              <p className="text-sm text-gray-600 mt-1 leading-relaxed">{result.treatment || 'Updating'}</p>
             </div>
           </div>
 
@@ -88,8 +91,8 @@ export default function ResultCard({ result, plantType }: ResultCardProps) {
               <ShieldCheck size={20} />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-gray-900">Phòng ngừa</h4>
-              <p className="text-sm text-gray-600 mt-1 leading-relaxed">{result.prevention || 'Đang cập nhật'}</p>
+              <h4 className="text-sm font-bold text-gray-900">Prevention</h4>
+              <p className="text-sm text-gray-600 mt-1 leading-relaxed">{result.prevention || 'Updating'}</p>
             </div>
           </div>
         </div>
@@ -97,7 +100,7 @@ export default function ResultCard({ result, plantType }: ResultCardProps) {
 
       <button className="w-full py-3.5 bg-white border border-green-200 text-green-700 rounded-xl font-medium text-sm shadow-sm flex items-center justify-center space-x-2 hover:bg-green-50 transition-colors">
         <MessageCircle size={18} />
-        <span>Hỏi thêm chuyên gia AI</span>
+        <span>Ask AI Expert</span>
       </button>
     </motion.div>
   );
