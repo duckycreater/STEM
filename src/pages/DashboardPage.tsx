@@ -20,7 +20,7 @@ L.Icon.Default.mergeOptions({
 // Không nên deploy production kiểu này.
 const DEEPSEEK_API_KEY = 'sk-8d346eace31249e4b8ef5803b9e14aed';
 
-const INITIAL_SENSOR_DATA = {
+const SENSOR_DATA = {
   temperature: 28.5,
   humidity: 65,
   soilMoisture: 42,
@@ -41,32 +41,16 @@ const FARM_POLYGON: [number, number][] = [
 export default function DashboardPage() {
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [sensorData, setSensorData] = useState(INITIAL_SENSOR_DATA);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSensorData(prev => ({
-        temperature: +(prev.temperature + (Math.random() * 0.4 - 0.2)).toFixed(1),
-        humidity: Math.max(0, Math.min(100, Math.round(prev.humidity + (Math.random() * 2 - 1)))),
-        soilMoisture: Math.max(0, Math.min(100, Math.round(prev.soilMoisture + (Math.random() * 2 - 1)))),
-        ph: +(prev.ph + (Math.random() * 0.1 - 0.05)).toFixed(1),
-        nitrogen: Math.max(0, Math.round(prev.nitrogen + (Math.random() * 4 - 2))),
-        phosphorus: Math.max(0, Math.round(prev.phosphorus + (Math.random() * 2 - 1))),
-        potassium: Math.max(0, Math.round(prev.potassium + (Math.random() * 2 - 1))),
-      }));
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
 
   const generateInsight = async () => {
     setLoading(true);
     try {
       const prompt = `I have IoT sensor data from a farm:
-      - Temperature: ${sensorData.temperature}°C
-      - Air Humidity: ${sensorData.humidity}%
-      - Soil Moisture: ${sensorData.soilMoisture}%
-      - Soil pH: ${sensorData.ph}
-      - N-P-K: ${sensorData.nitrogen}-${sensorData.phosphorus}-${sensorData.potassium} mg/kg
+      - Temperature: ${SENSOR_DATA.temperature}°C
+      - Air Humidity: ${SENSOR_DATA.humidity}%
+      - Soil Moisture: ${SENSOR_DATA.soilMoisture}%
+      - Soil pH: ${SENSOR_DATA.ph}
+      - N-P-K: ${SENSOR_DATA.nitrogen}-${SENSOR_DATA.phosphorus}-${SENSOR_DATA.potassium} mg/kg
       
       Based on this data, act as an AI agricultural engineer and provide 3 concise, modern, and practical tips to optimize crop yield right now. Reply in English using bullet points.`;
 
@@ -74,7 +58,7 @@ export default function DashboardPage() {
 
       try {
         const response = await ai.models.generateContent({
-          model: 'gemini-1.5-flash',
+          model: 'gemini-2.5-flash-lite',
           contents: prompt,
           config: {
             tools: [{ googleSearch: {} }],
@@ -89,7 +73,7 @@ export default function DashboardPage() {
 
       try {
         const response = await ai.models.generateContent({
-          model: 'gemini-1.5-flash',
+          model: 'gemini-2.5-flash',
           contents: prompt,
           config: {
             tools: [{ googleSearch: {} }],
@@ -155,7 +139,7 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center justify-between mt-4">
           <div>
-            <p className="text-3xl font-light">{sensorData.temperature}°C</p>
+            <p className="text-3xl font-light">{SENSOR_DATA.temperature}°C</p>
             <p className="text-emerald-100 text-sm flex items-center gap-1">
               <CloudRain size={14} /> Light rain
             </p>
@@ -175,31 +159,31 @@ export default function DashboardPage() {
             <SensorCard
               icon={<Droplets className="text-blue-500" />}
               label="Soil Moisture"
-              value={`${sensorData.soilMoisture}%`}
+              value={`${SENSOR_DATA.soilMoisture}%`}
               status="Normal"
-              progress={sensorData.soilMoisture}
+              progress={SENSOR_DATA.soilMoisture}
               color="bg-blue-500"
             />
             <SensorCard
               icon={<Wind className="text-teal-500" />}
               label="Air Humidity"
-              value={`${sensorData.humidity}%`}
+              value={`${SENSOR_DATA.humidity}%`}
               status="Slightly High"
-              progress={sensorData.humidity}
+              progress={SENSOR_DATA.humidity}
               color="bg-teal-500"
             />
             <SensorCard
               icon={<Activity className="text-purple-500" />}
               label="pH Level"
-              value={sensorData.ph}
+              value={SENSOR_DATA.ph}
               status="Optimal"
-              progress={(sensorData.ph / 14) * 100}
+              progress={(SENSOR_DATA.ph / 14) * 100}
               color="bg-purple-500"
             />
             <SensorCard
               icon={<Zap className="text-amber-500" />}
               label="N-P-K"
-              value={`${sensorData.nitrogen}-${sensorData.phosphorus}-${sensorData.potassium}`}
+              value={`${SENSOR_DATA.nitrogen}-${SENSOR_DATA.phosphorus}-${SENSOR_DATA.potassium}`}
               status="Needs N"
               progress={60}
               color="bg-amber-500"

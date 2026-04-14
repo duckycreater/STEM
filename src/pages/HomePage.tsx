@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Camera, Upload, Leaf, AlertCircle, RefreshCw, ChevronRight, Zap } from 'lucide-react';
+import { Camera, Upload, Leaf, AlertCircle, RefreshCw, ChevronRight, Zap, Mic, MicOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import ResultCard from '../components/ResultCard';
 import { GoogleGenAI } from '@google/genai';
+import Groq from 'groq-sdk';
 import imageCompression from 'browser-image-compression';
 import { useSettings } from '../contexts/SettingsContext';
 import { offlineDiseases } from '../lib/offlineData';
@@ -18,11 +19,14 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [batchName, setBatchName] = useState('');
   const [todayDisease, setTodayDisease] = useState(offlineDiseases[0]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioNote, setAudioNote] = useState<string>('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   
   const { ruralMode, isOffline } = useSettings();
 
@@ -62,6 +66,60 @@ export default function HomePage() {
     }
   };
 
+  const toggleRecording = async () => {
+    if (isRecording) {
+      mediaRecorderRef.current?.stop();
+      setIsRecording(false);
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        audioChunksRef.current = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          stream.getTracks().forEach(track => track.stop());
+          
+          try {
+            setLoading(true);
+            const groq = new Groq({ apiKey: import.meta.env.VITE_GROQ_API_KEY || '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', dangerouslyAllowBrowser: true });
+            
+            // Convert blob to File object for Groq SDK
+            const audioFile = new File([audioBlob], "audio.webm", { type: "audio/webm" });
+            
+            const transcription = await groq.audio.transcriptions.create({
+              file: audioFile,
+              model: "whisper-large-v3",
+              language: "en", // Or vi if needed
+            });
+            
+            if (transcription.text) {
+              setAudioNote(prev => prev ? prev + ' ' + transcription.text : transcription.text);
+            }
+          } catch (err) {
+            console.error("Transcription error:", err);
+            setError("Failed to transcribe audio.");
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        mediaRecorder.start();
+        setIsRecording(true);
+      } catch (err) {
+        console.error("Microphone access error:", err);
+        setError("Microphone access denied or not available.");
+      }
+    }
+  };
+
   const analyzeImage = async () => {
     if (!image) return;
     
@@ -73,13 +131,11 @@ export default function HomePage() {
         // Offline fallback: Simulate analysis or show offline message
         setTimeout(() => {
           setResult({
-            diseaseName: "Không thể nhận diện (Ngoại tuyến)",
-            confidence: "0%",
-            explanation: "Bạn đang ở chế độ ngoại tuyến. AI cần kết nối mạng để phân tích ảnh.",
-            severity: "Không xác định",
-            treatment: "Vui lòng kết nối mạng để sử dụng tính năng nhận diện ảnh.",
-            actionAdvice: "Chờ kết nối mạng",
-            prevention: "Đảm bảo điện thoại có kết nối 3G/4G hoặc Wi-Fi."
+            diseaseName: "Cannot identify (Offline Mode)",
+            severity: "Unknown",
+            cause: "You are offline. AI needs an internet connection to analyze images.",
+            treatment: "Please connect to the internet to use the image recognition feature. You can still search for common diseases in the Dictionary or Chatbot.",
+            prevention: "Ensure your phone has a 3G/4G or Wi-Fi connection."
           });
           setLoading(false);
         }, 1500);
@@ -88,36 +144,47 @@ export default function HomePage() {
 
       const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY });
       
-      const prompt = `Bạn là chuyên gia nông nghiệp. Hãy phân tích ảnh cây trồng này. ${selectedPlant ? `Đây là cây ${selectedPlant}. ` : ''}
-Cung cấp phân tích 4 lớp chi tiết. Trả lời bằng tiếng Việt. Trả về định dạng JSON với các trường sau:
-- diseaseName: Tên bệnh (hoặc "Khỏe mạnh" nếu không có bệnh).
-- confidence: Độ tin cậy (ví dụ: "95%").
-- explanation: Giải thích vì sao dự đoán vậy (dấu hiệu nhận biết, vùng nghi bị bệnh).
-- severity: Mức độ nguy hiểm ("Nguy cơ cao", "Trung bình", "Khỏe mạnh").
-- treatment: Cách xử lý đề xuất.
-- actionAdvice: Lời khuyên hành động ("Theo dõi tiếp" hoặc "Xử lý ngay").
-- prevention: Cách phòng ngừa.`;
+      const prompt = `You are an agricultural expert. Analyze this plant image. ${selectedPlant ? `This is a ${selectedPlant} plant. ` : ''}${audioNote ? `Additional context from user: "${audioNote}". ` : ''}Identify the disease name, cause, severity, treatment, and prevention. Reply concisely in English. Return JSON format with fields: diseaseName, severity, cause, treatment, prevention.`;
 
       const base64Data = image.split(',')[1];
       const mimeType = image.split(';')[0].split(':')[1];
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: [
-          prompt,
-          {
-            inlineData: {
-              data: base64Data,
-              mimeType: mimeType
+      let reply = '';
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: [
+            prompt,
+            {
+              inlineData: {
+                data: base64Data,
+                mimeType: mimeType
+              }
             }
+          ],
+          config: {
+            responseMimeType: 'application/json'
           }
-        ],
-        config: {
-          responseMimeType: 'application/json'
-        }
-      });
-
-      const reply = response.text;
+        });
+        reply = response.text || '';
+      } catch (geminiError) {
+        console.warn('Gemini vision failed, falling back to Groq meta-llama/llama-4-scout-17b-16e-instruct', geminiError);
+        const groq = new Groq({ apiKey: import.meta.env.VITE_GROQ_API_KEY || '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', dangerouslyAllowBrowser: true });
+        const groqResponse = await groq.chat.completions.create({
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: prompt },
+                { type: 'image_url', image_url: { url: image } }
+              ]
+            }
+          ],
+          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          response_format: { type: 'json_object' }
+        });
+        reply = groqResponse.choices[0]?.message?.content || '';
+      }
 
       if (!reply) {
         throw new Error('No response received from AI');
@@ -132,7 +199,6 @@ Cung cấp phân tích 4 lớp chi tiết. Trả lời bằng tiếng Việt. Tr
         date: new Date().toISOString(),
         image,
         plantType: selectedPlant,
-        batchName: batchName.trim() || 'Chưa phân loại',
         result: data
       };
       
@@ -151,6 +217,7 @@ Cung cấp phân tích 4 lớp chi tiết. Trả lời bằng tiếng Việt. Tr
     setImage(null);
     setResult(null);
     setError(null);
+    setAudioNote('');
   };
 
   return (
@@ -223,17 +290,6 @@ Cung cấp phân tích 4 lớp chi tiết. Trả lời bằng tiếng Việt. Tr
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tên lô / Vị trí (Tùy chọn)</label>
-                <input 
-                  type="text" 
-                  value={batchName}
-                  onChange={(e) => setBatchName(e.target.value)}
-                  placeholder="Ví dụ: Lô A, Vườn sau, Cây số 3..." 
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
-                />
-              </div>
-
               <div className="grid grid-cols-2 gap-4 mt-8">
                 <button 
                   onClick={() => cameraInputRef.current?.click()}
@@ -256,6 +312,29 @@ Cung cấp phân tích 4 lớp chi tiết. Trả lời bằng tiếng Việt. Tr
                   <span className="font-medium text-gray-800 dark:text-gray-200">Upload Photo</span>
                   <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">From gallery</span>
                 </button>
+              </div>
+
+              <div className="mt-6 bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-200 dark:border-gray-800">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Add Voice Note (Optional)</label>
+                  <button 
+                    onClick={toggleRecording}
+                    className={cn(
+                      "p-2 rounded-full transition-colors",
+                      isRecording ? "bg-red-100 text-red-600 animate-pulse" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-emerald-100 hover:text-emerald-600"
+                    )}
+                  >
+                    {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+                  </button>
+                </div>
+                {audioNote && (
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl text-sm text-gray-700 dark:text-gray-300 border border-gray-100 dark:border-gray-700">
+                    "{audioNote}"
+                  </div>
+                )}
+                {isRecording && (
+                  <div className="text-xs text-red-500 mt-2 text-center">Recording... Tap mic to stop.</div>
+                )}
               </div>
 
               <input 
@@ -282,21 +361,10 @@ Cung cấp phân tích 4 lớp chi tiết. Trả lời bằng tiếng Việt. Tr
               className="space-y-4"
             >
               <div className="relative rounded-2xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-800 bg-black">
-                <img src={image} alt="Uploaded plant" className={cn("w-full h-64 object-contain transition-all", loading ? "opacity-50 blur-sm" : "")} />
-                
-                {loading && (
-                  <motion.div 
-                    initial={{ top: '0%' }}
-                    animate={{ top: '100%' }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                    className="absolute left-0 w-full h-1 bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,1)] z-10"
-                  />
-                )}
-
+                <img src={image} alt="Uploaded plant" className="w-full h-64 object-contain" />
                 <button 
                   onClick={reset}
-                  disabled={loading}
-                  className="absolute top-3 right-3 bg-black/50 text-white p-2 rounded-full backdrop-blur-sm hover:bg-black/70 disabled:opacity-50"
+                  className="absolute top-3 right-3 bg-black/50 text-white p-2 rounded-full backdrop-blur-sm hover:bg-black/70"
                 >
                   <RefreshCw size={18} />
                 </button>
@@ -308,23 +376,19 @@ Cung cấp phân tích 4 lớp chi tiết. Trả lời bằng tiếng Việt. Tr
                   className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-lg shadow-md flex items-center justify-center space-x-2 transition-transform active:scale-95"
                 >
                   <Leaf size={20} />
-                  <span>Phân tích bệnh ngay</span>
+                  <span>Analyze Disease Now</span>
                 </button>
               )}
 
               {loading && (
                 <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col items-center justify-center space-y-4">
-                  <div className="relative w-20 h-20">
+                  <div className="relative w-16 h-16">
                     <div className="absolute inset-0 border-4 border-emerald-100 dark:border-emerald-900 rounded-full"></div>
-                    <div className="absolute inset-0 border-4 border-emerald-500 rounded-full border-t-transparent animate-spin"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Leaf className="text-emerald-500 animate-pulse" size={28} />
-                    </div>
+                    <div className="absolute inset-0 border-4 border-emerald-600 rounded-full border-t-transparent animate-spin"></div>
+                    <Leaf className="absolute inset-0 m-auto text-emerald-600 animate-pulse" size={24} />
                   </div>
-                  <div className="text-center">
-                    <p className="text-gray-800 dark:text-gray-200 font-bold text-lg animate-pulse">Đang phân tích AI...</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Hệ thống đang quét các dấu hiệu bệnh trên lá và thân.</p>
-                  </div>
+                  <p className="text-gray-600 dark:text-gray-300 font-medium animate-pulse">Analyzing image...</p>
+                  <p className="text-xs text-gray-400 text-center">AI is scanning for disease signs on leaves and stems.</p>
                 </div>
               )}
 
@@ -332,13 +396,13 @@ Cung cấp phân tích 4 lớp chi tiết. Trả lời bằng tiếng Việt. Tr
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 flex items-start space-x-3">
                   <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
                   <div>
-                  <h3 className="text-red-800 dark:text-red-200 font-medium">Lỗi phân tích</h3>
+                    <h3 className="text-red-800 dark:text-red-200 font-medium">Analysis Error</h3>
                     <p className="text-red-600 dark:text-red-300 text-sm mt-1">{error}</p>
                     <button 
                       onClick={analyzeImage}
                       className="mt-3 px-4 py-2 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-200 rounded-lg text-sm font-medium hover:bg-red-200 dark:hover:bg-red-900"
                     >
-                      Thử lại
+                      Try Again
                     </button>
                   </div>
                 </div>

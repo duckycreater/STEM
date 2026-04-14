@@ -191,12 +191,25 @@ export default function AIChatBot() {
         });
       }
 
-      const response = await groq.chat.completions.create({
-        messages: groqMessages,
-        model: imageToSend ? 'llama-3.2-90b-vision-preview' : 'llama-3.3-70b-versatile',
-      });
-
-      const reply = response.choices[0]?.message?.content;
+      let reply = '';
+      try {
+        const response = await groq.chat.completions.create({
+          messages: groqMessages,
+          model: imageToSend ? 'llama-3.2-90b-vision-preview' : 'llama-3.3-70b-versatile',
+        });
+        reply = response.choices[0]?.message?.content || '';
+      } catch (error) {
+        if (imageToSend) {
+          console.warn('Primary vision model failed, falling back to meta-llama/llama-4-scout-17b-16e-instruct', error);
+          const fallbackResponse = await groq.chat.completions.create({
+            messages: groqMessages,
+            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          });
+          reply = fallbackResponse.choices[0]?.message?.content || '';
+        } else {
+          throw error;
+        }
+      }
 
       if (reply) {
         setMessages(prev => [...prev, { role: 'model', text: reply }]);
