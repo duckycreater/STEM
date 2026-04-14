@@ -193,7 +193,7 @@ export default function AIChatBot() {
 
       const response = await groq.chat.completions.create({
         messages: groqMessages,
-        model: imageToSend ? 'llama-3.2-11b-vision-preview' : 'llama-3.3-70b-versatile',
+        model: imageToSend ? 'llama-3.2-90b-vision-preview' : 'llama-3.3-70b-versatile',
       });
 
       const reply = response.choices[0]?.message?.content;

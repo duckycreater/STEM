@@ -3,7 +3,7 @@ import { Camera, Upload, Leaf, AlertCircle, RefreshCw, ChevronRight, Zap } from 
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import ResultCard from '../components/ResultCard';
-import Groq from 'groq-sdk';
+import { GoogleGenAI } from '@google/genai';
 import imageCompression from 'browser-image-compression';
 import { useSettings } from '../contexts/SettingsContext';
 import { offlineDiseases } from '../lib/offlineData';
@@ -83,26 +83,30 @@ export default function HomePage() {
         return;
       }
 
-      const apiKey = import.meta.env.VITE_GROQ_API_KEY || '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';
-      const groq = new Groq({ apiKey: apiKey, dangerouslyAllowBrowser: true });
+      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY });
       
       const prompt = `You are an agricultural expert. Analyze this plant image. ${selectedPlant ? `This is a ${selectedPlant} plant. ` : ''}Identify the disease name, cause, severity, treatment, and prevention. Reply concisely in English. Return JSON format with fields: diseaseName, severity, cause, treatment, prevention.`;
 
-      const response = await groq.chat.completions.create({
-        messages: [
+      const base64Data = image.split(',')[1];
+      const mimeType = image.split(';')[0].split(':')[1];
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          prompt,
           {
-            role: 'user',
-            content: [
-              { type: 'text', text: prompt },
-              { type: 'image_url', image_url: { url: image } }
-            ]
+            inlineData: {
+              data: base64Data,
+              mimeType: mimeType
+            }
           }
         ],
-        model: 'llama-3.2-11b-vision-preview',
-        response_format: { type: 'json_object' }
+        config: {
+          responseMimeType: 'application/json'
+        }
       });
 
-      const reply = response.choices[0]?.message?.content;
+      const reply = response.text;
 
       if (!reply) {
         throw new Error('No response received from AI');
