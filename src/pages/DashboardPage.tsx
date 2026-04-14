@@ -50,7 +50,7 @@ export default function DashboardPage() {
       Based on this data, act as an AI agricultural engineer and provide 3 concise, modern, and practical tips to optimize crop yield right now. Reply in English using bullet points.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'Gemini 2.5 Flash',
         contents: prompt,
         config: {
           tools: [{ googleSearch: {} }],
