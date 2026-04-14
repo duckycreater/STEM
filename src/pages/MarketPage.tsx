@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { GoogleGenAI } from '@google/genai';
 
-const MARKET_DATA = {
+const INITIAL_MARKET_DATA = {
   'Coffee': [
     { month: 'Oct', price: 65000 },
     { month: 'Nov', price: 68000 },
@@ -35,12 +35,35 @@ export default function MarketPage() {
   const [selectedProduct, setSelectedProduct] = useState('Coffee');
   const [aiForecast, setAiForecast] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [marketData, setMarketData] = useState(INITIAL_MARKET_DATA);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMarketData(prev => {
+        const newData = { ...prev };
+        Object.keys(newData).forEach(key => {
+          const productData = [...newData[key as keyof typeof newData]];
+          const lastIndex = productData.length - 1;
+          const currentPrice = productData[lastIndex].price;
+          // Fluctuate by -1% to +1%
+          const change = currentPrice * (Math.random() * 0.02 - 0.01);
+          productData[lastIndex] = {
+            ...productData[lastIndex],
+            price: Math.round(currentPrice + change)
+          };
+          newData[key as keyof typeof newData] = productData;
+        });
+        return newData;
+      });
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const generateForecast = async () => {
     setLoading(true);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const dataStr = MARKET_DATA[selectedProduct as keyof typeof MARKET_DATA]
+      const dataStr = marketData[selectedProduct as keyof typeof marketData]
         .map(d => `${d.month}: ${d.price.toLocaleString()} VNĐ`)
         .join(', ');
         
@@ -68,7 +91,7 @@ export default function MarketPage() {
     generateForecast();
   }, [selectedProduct]);
 
-  const currentData = MARKET_DATA[selectedProduct as keyof typeof MARKET_DATA];
+  const currentData = marketData[selectedProduct as keyof typeof marketData];
   const currentPrice = currentData[currentData.length - 1].price;
   const previousPrice = currentData[currentData.length - 2].price;
   const percentChange = ((currentPrice - previousPrice) / previousPrice) * 100;
@@ -83,7 +106,7 @@ export default function MarketPage() {
         </h1>
         
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          {Object.keys(MARKET_DATA).map(product => (
+          {Object.keys(marketData).map(product => (
             <button
               key={product}
               onClick={() => setSelectedProduct(product)}

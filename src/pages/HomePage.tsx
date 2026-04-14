@@ -18,6 +18,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [batchName, setBatchName] = useState('');
   const [todayDisease, setTodayDisease] = useState(offlineDiseases[0]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -72,11 +73,13 @@ export default function HomePage() {
         // Offline fallback: Simulate analysis or show offline message
         setTimeout(() => {
           setResult({
-            diseaseName: "Cannot identify (Offline Mode)",
-            severity: "Unknown",
-            cause: "You are offline. AI needs an internet connection to analyze images.",
-            treatment: "Please connect to the internet to use the image recognition feature. You can still search for common diseases in the Dictionary or Chatbot.",
-            prevention: "Ensure your phone has a 3G/4G or Wi-Fi connection."
+            diseaseName: "Không thể nhận diện (Ngoại tuyến)",
+            confidence: "0%",
+            explanation: "Bạn đang ở chế độ ngoại tuyến. AI cần kết nối mạng để phân tích ảnh.",
+            severity: "Không xác định",
+            treatment: "Vui lòng kết nối mạng để sử dụng tính năng nhận diện ảnh.",
+            actionAdvice: "Chờ kết nối mạng",
+            prevention: "Đảm bảo điện thoại có kết nối 3G/4G hoặc Wi-Fi."
           });
           setLoading(false);
         }, 1500);
@@ -85,7 +88,15 @@ export default function HomePage() {
 
       const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY });
       
-      const prompt = `You are an agricultural expert. Analyze this plant image. ${selectedPlant ? `This is a ${selectedPlant} plant. ` : ''}Identify the disease name, cause, severity, treatment, and prevention. Reply concisely in English. Return JSON format with fields: diseaseName, severity, cause, treatment, prevention.`;
+      const prompt = `Bạn là chuyên gia nông nghiệp. Hãy phân tích ảnh cây trồng này. ${selectedPlant ? `Đây là cây ${selectedPlant}. ` : ''}
+Cung cấp phân tích 4 lớp chi tiết. Trả lời bằng tiếng Việt. Trả về định dạng JSON với các trường sau:
+- diseaseName: Tên bệnh (hoặc "Khỏe mạnh" nếu không có bệnh).
+- confidence: Độ tin cậy (ví dụ: "95%").
+- explanation: Giải thích vì sao dự đoán vậy (dấu hiệu nhận biết, vùng nghi bị bệnh).
+- severity: Mức độ nguy hiểm ("Nguy cơ cao", "Trung bình", "Khỏe mạnh").
+- treatment: Cách xử lý đề xuất.
+- actionAdvice: Lời khuyên hành động ("Theo dõi tiếp" hoặc "Xử lý ngay").
+- prevention: Cách phòng ngừa.`;
 
       const base64Data = image.split(',')[1];
       const mimeType = image.split(';')[0].split(':')[1];
@@ -121,6 +132,7 @@ export default function HomePage() {
         date: new Date().toISOString(),
         image,
         plantType: selectedPlant,
+        batchName: batchName.trim() || 'Chưa phân loại',
         result: data
       };
       
@@ -211,6 +223,17 @@ export default function HomePage() {
                 </div>
               </div>
 
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tên lô / Vị trí (Tùy chọn)</label>
+                <input 
+                  type="text" 
+                  value={batchName}
+                  onChange={(e) => setBatchName(e.target.value)}
+                  placeholder="Ví dụ: Lô A, Vườn sau, Cây số 3..." 
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4 mt-8">
                 <button 
                   onClick={() => cameraInputRef.current?.click()}
@@ -259,10 +282,21 @@ export default function HomePage() {
               className="space-y-4"
             >
               <div className="relative rounded-2xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-800 bg-black">
-                <img src={image} alt="Uploaded plant" className="w-full h-64 object-contain" />
+                <img src={image} alt="Uploaded plant" className={cn("w-full h-64 object-contain transition-all", loading ? "opacity-50 blur-sm" : "")} />
+                
+                {loading && (
+                  <motion.div 
+                    initial={{ top: '0%' }}
+                    animate={{ top: '100%' }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    className="absolute left-0 w-full h-1 bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,1)] z-10"
+                  />
+                )}
+
                 <button 
                   onClick={reset}
-                  className="absolute top-3 right-3 bg-black/50 text-white p-2 rounded-full backdrop-blur-sm hover:bg-black/70"
+                  disabled={loading}
+                  className="absolute top-3 right-3 bg-black/50 text-white p-2 rounded-full backdrop-blur-sm hover:bg-black/70 disabled:opacity-50"
                 >
                   <RefreshCw size={18} />
                 </button>
@@ -274,19 +308,23 @@ export default function HomePage() {
                   className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-lg shadow-md flex items-center justify-center space-x-2 transition-transform active:scale-95"
                 >
                   <Leaf size={20} />
-                  <span>Analyze Disease Now</span>
+                  <span>Phân tích bệnh ngay</span>
                 </button>
               )}
 
               {loading && (
                 <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col items-center justify-center space-y-4">
-                  <div className="relative w-16 h-16">
+                  <div className="relative w-20 h-20">
                     <div className="absolute inset-0 border-4 border-emerald-100 dark:border-emerald-900 rounded-full"></div>
-                    <div className="absolute inset-0 border-4 border-emerald-600 rounded-full border-t-transparent animate-spin"></div>
-                    <Leaf className="absolute inset-0 m-auto text-emerald-600 animate-pulse" size={24} />
+                    <div className="absolute inset-0 border-4 border-emerald-500 rounded-full border-t-transparent animate-spin"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Leaf className="text-emerald-500 animate-pulse" size={28} />
+                    </div>
                   </div>
-                  <p className="text-gray-600 dark:text-gray-300 font-medium animate-pulse">Analyzing image...</p>
-                  <p className="text-xs text-gray-400 text-center">AI is scanning for disease signs on leaves and stems.</p>
+                  <div className="text-center">
+                    <p className="text-gray-800 dark:text-gray-200 font-bold text-lg animate-pulse">Đang phân tích AI...</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Hệ thống đang quét các dấu hiệu bệnh trên lá và thân.</p>
+                  </div>
                 </div>
               )}
 
@@ -294,13 +332,13 @@ export default function HomePage() {
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 flex items-start space-x-3">
                   <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
                   <div>
-                    <h3 className="text-red-800 dark:text-red-200 font-medium">Analysis Error</h3>
+                  <h3 className="text-red-800 dark:text-red-200 font-medium">Lỗi phân tích</h3>
                     <p className="text-red-600 dark:text-red-300 text-sm mt-1">{error}</p>
                     <button 
                       onClick={analyzeImage}
                       className="mt-3 px-4 py-2 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-200 rounded-lg text-sm font-medium hover:bg-red-200 dark:hover:bg-red-900"
                     >
-                      Try Again
+                      Thử lại
                     </button>
                   </div>
                 </div>
