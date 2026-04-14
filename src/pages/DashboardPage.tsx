@@ -50,7 +50,7 @@ export default function DashboardPage() {
       Based on this data, act as an AI agricultural engineer and provide 3 concise, modern, and practical tips to optimize crop yield right now. Reply in English using bullet points.`;
 
       const response = await ai.models.generateContent({
-        model: 'Gemini 2.5 Flash',
+        model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
           tools: [{ googleSearch: {} }],
@@ -102,34 +102,34 @@ export default function DashboardPage() {
             Real-time Metrics
           </h2>
           <div className="grid grid-cols-2 gap-3">
-            <SensorCard 
-              icon={<Droplets className="text-blue-500" />} 
-              label="Soil Moisture" 
-              value={`${SENSOR_DATA.soilMoisture}%`} 
+            <SensorCard
+              icon={<Droplets className="text-blue-500" />}
+              label="Soil Moisture"
+              value={`${SENSOR_DATA.soilMoisture}%`}
               status="Normal"
               progress={SENSOR_DATA.soilMoisture}
               color="bg-blue-500"
             />
-            <SensorCard 
-              icon={<Wind className="text-teal-500" />} 
-              label="Air Humidity" 
-              value={`${SENSOR_DATA.humidity}%`} 
+            <SensorCard
+              icon={<Wind className="text-teal-500" />}
+              label="Air Humidity"
+              value={`${SENSOR_DATA.humidity}%`}
               status="Slightly High"
               progress={SENSOR_DATA.humidity}
               color="bg-teal-500"
             />
-            <SensorCard 
-              icon={<Activity className="text-purple-500" />} 
-              label="pH Level" 
-              value={SENSOR_DATA.ph} 
+            <SensorCard
+              icon={<Activity className="text-purple-500" />}
+              label="pH Level"
+              value={SENSOR_DATA.ph}
               status="Optimal"
               progress={(SENSOR_DATA.ph / 14) * 100}
               color="bg-purple-500"
             />
-            <SensorCard 
-              icon={<Zap className="text-amber-500" />} 
-              label="N-P-K" 
-              value={`${SENSOR_DATA.nitrogen}-${SENSOR_DATA.phosphorus}-${SENSOR_DATA.potassium}`} 
+            <SensorCard
+              icon={<Zap className="text-amber-500" />}
+              label="N-P-K"
+              value={`${SENSOR_DATA.nitrogen}-${SENSOR_DATA.phosphorus}-${SENSOR_DATA.potassium}`}
               status="Needs N"
               progress={60}
               color="bg-amber-500"
@@ -138,7 +138,7 @@ export default function DashboardPage() {
         </div>
 
         {/* AI Insights */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-2xl p-5 shadow-sm border border-emerald-100 relative overflow-hidden"
@@ -149,7 +149,7 @@ export default function DashboardPage() {
               <Cpu size={18} className="text-emerald-600" />
               AI Analysis & Recommendations
             </h3>
-            <button 
+            <button
               onClick={generateInsight}
               disabled={loading}
               className="text-emerald-600 hover:bg-emerald-50 p-2 rounded-full transition-colors disabled:opacity-50"
@@ -157,7 +157,7 @@ export default function DashboardPage() {
               <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
             </button>
           </div>
-          
+
           <div className="prose prose-sm prose-emerald max-w-none text-gray-700">
             {loading ? (
               <div className="space-y-2 animate-pulse">
@@ -189,7 +189,7 @@ export default function DashboardPage() {
               <Marker position={FARM_CENTER}>
                 <Popup>
                   <div className="text-center">
-                    <strong>IoT Farm</strong><br/>
+                    <strong>IoT Farm</strong><br />
                     Dalat, Vietnam
                   </div>
                 </Popup>
