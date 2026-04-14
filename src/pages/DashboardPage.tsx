@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Thermometer, Droplets, Wind, Sun, Activity, Map as MapIcon, Cpu, Zap, CloudRain, RefreshCw } from 'lucide-react';
 import { motion } from 'motion/react';
 import { GoogleGenAI } from '@google/genai';
+import OpenAI from 'openai';
 import { MapContainer, TileLayer, Polygon, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -13,6 +14,11 @@ L.Icon.Default.mergeOptions({
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
+
+// TEST ONLY
+// Dán key DeepSeek mới vào đây để test local.
+// Không nên deploy production kiểu này.
+const DEEPSEEK_API_KEY = 'sk-8d346eace31249e4b8ef5803b9e14aed';
 
 const SENSOR_DATA = {
   temperature: 28.5,
@@ -39,7 +45,6 @@ export default function DashboardPage() {
   const generateInsight = async () => {
     setLoading(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const prompt = `I have IoT sensor data from a farm:
       - Temperature: ${SENSOR_DATA.temperature}°C
       - Air Humidity: ${SENSOR_DATA.humidity}%
@@ -49,15 +54,64 @@ export default function DashboardPage() {
       
       Based on this data, act as an AI agricultural engineer and provide 3 concise, modern, and practical tips to optimize crop yield right now. Reply in English using bullet points.`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-          tools: [{ googleSearch: {} }],
-        }
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash-lite',
+          contents: prompt,
+          config: {
+            tools: [{ googleSearch: {} }],
+          }
+        });
+
+        setAiInsight(response.text || 'Cannot generate analysis at this time.');
+        return;
+      } catch (flashLiteError) {
+        console.warn('Gemini 2.5 Flash-Lite failed, fallback to Gemini 2.5 Flash:', flashLiteError);
+      }
+
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+          config: {
+            tools: [{ googleSearch: {} }],
+          }
+        });
+
+        setAiInsight(response.text || 'Cannot generate analysis at this time.');
+        return;
+      } catch (flashError) {
+        console.warn('Gemini 2.5 Flash failed, fallback to DeepSeek:', flashError);
+      }
+
+      const client = new OpenAI({
+        apiKey: DEEPSEEK_API_KEY,
+        baseURL: 'https://api.deepseek.com',
+        dangerouslyAllowBrowser: true,
       });
 
-      setAiInsight(response.text || 'Cannot generate analysis at this time.');
+      const deepseekResponse = await client.chat.completions.create({
+        model: 'deepseek-chat',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a practical agricultural AI assistant. Be concise and action-oriented.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: 300,
+      });
+
+      setAiInsight(
+        deepseekResponse.choices?.[0]?.message?.content ||
+          'Cannot generate analysis at this time.'
+      );
     } catch (error) {
       console.error(error);
       setAiInsight('Error connecting to AI system. Please try again later.');
