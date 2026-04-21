@@ -12,7 +12,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   // API proxy - Forward /api/* to backend server
   app.use('/api', express.json(), apiRouter);
@@ -158,6 +158,42 @@ async function startServer() {
       { crop: 'Mang tiêu', price: '25,000 VNĐ/kg', trend: 'up', change: '+3.2%' },
     ];
     res.json({ success: true, data: prices });
+  });
+
+  // Market Prices Forecast (Mock)
+  app.get('/api/market/forecast', (req, res) => {
+    const forecast = [
+      { day: 1, rice: 18500, coffee: 95000, pepper: 121000 },
+      { day: 2, rice: 18600, coffee: 95200, pepper: 120500 },
+      { day: 3, rice: 18450, coffee: 94800, pepper: 120000 },
+    ];
+    res.json({ success: true, data: forecast });
+  });
+
+  // Transcription (Mock - no actual STT)
+  app.post('/api/transcribe', (req, res) => {
+    res.json({ success: true, data: { text: req.body.text || 'Ghi chú mẫu' } });
+  });
+
+  // Error logging
+  app.post('/api/log/error', (req, res) => {
+    console.error('Client error:', req.body);
+    res.json({ success: true });
+  });
+
+  app.post('/api/log/client', (req, res) => {
+    console.log('Client log:', req.body);
+    res.json({ success: true });
+  });
+
+  // Analytics
+  app.post('/api/analytics', (req, res) => {
+    res.json({ success: true, data: { events: [] } });
+  });
+
+  app.post('/api/logs/crash', (req, res) => {
+    console.error('Crash log:', req.body);
+    res.json({ success: true });
   });
 
   // Error handling

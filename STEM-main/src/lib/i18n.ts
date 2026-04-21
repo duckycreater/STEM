@@ -5,6 +5,13 @@
 export type Language = 'vi' | 'en';
 
 interface Translations {
+  nav: {
+    home: string;
+    dashboard: string;
+    market: string;
+    plants: string;
+    settings: string;
+  };
   common: {
     appName: string;
     scan: string;
@@ -115,6 +122,13 @@ interface Translations {
 
 const translations: Record<Language, Translations> = {
   vi: {
+    nav: {
+      home: 'Chẩn đoán',
+      dashboard: 'Nông trại',
+      market: 'Thị trường',
+      plants: 'Từ điển',
+      settings: 'Cài đặt',
+    },
     common: {
       appName: 'PlantCare AI',
       scan: 'Quét',
@@ -223,6 +237,13 @@ const translations: Record<Language, Translations> = {
     },
   },
   en: {
+    nav: {
+      home: 'Diagnose',
+      dashboard: 'Farm',
+      market: 'Market',
+      plants: 'Dictionary',
+      settings: 'Settings',
+    },
     common: {
       appName: 'PlantCare AI',
       scan: 'Scan',
